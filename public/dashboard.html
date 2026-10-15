@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TapTrack Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(90deg, #C7C5F4, #776BCC);
+        }
+
+        .nav-bar {
+            background: linear-gradient(90deg, #5D54A4, #7C78B8);
+            padding: 15px;
+            box-shadow: 0px 0px 10px #5C5696;
+        }
+
+        .dashboard-card {
+            background: linear-gradient(90deg, #5D54A4, #7C78B8);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 24px #5C5696;
+            color: white;
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+            margin: auto;
+            opacity: 0;
+            /* Start hidden for GSAP animation */
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="nav-bar text-white p-4 flex items-center shadow-md">
+        <h1 class="text-2xl font-bold mr-6">TapTrack</h1>
+        <div class="nav-links flex space-x-6">
+            <a href="dashboard.html" class="text-lg hover:underline">Home</a>
+            <a href="attendance.html" class="text-lg hover:underline">Attendance</a>
+            <a href="register-student.html" class="text-lg hover:underline">Register Student</a>
+        </div>
+
+        <!-- Profile Dropdown -->
+        <div class="relative ml-auto">
+            <button id="profileDropdown"
+                class="flex items-center space-x-2 bg-gray-700 px-4 py-2 rounded-lg focus:outline-none">
+                <img src="profile.png" alt="Profile" class="w-8 h-8 rounded-full">
+                <span>Admin</span>
+            </button>
+            <ul id="profileDropdownMenu" class="hidden absolute right-0 mt-2 bg-white shadow-md rounded-lg w-40">
+                <li>
+                    <a href="#" onclick="logout()" class="block px-4 py-2 text-gray-700 hover:bg-gray-200">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Dashboard Content -->
+    <div class="flex flex-col justify-center items-center min-h-screen px-4 space-y-6">
+        <div class="dashboard-card">
+            <h2 class="text-3xl font-bold">Welcome to TapTrack Dashboard</h2>
+            <p class="mt-2">Your smart RFID-based attendance system.</p>
+        </div>
+
+        <div class="dashboard-card">
+            <h2 class="text-2xl font-bold">About TapTrack</h2>
+            <p class="mt-2">
+                TapTrack is an <strong>RFID-based attendance system</strong> designed to simplify student attendance
+                tracking. Using <strong>ESP32</strong>, <strong>RFID technology</strong>, and a <strong>web-based admin
+                    dashboard</strong>, it ensures accuracy and efficiency in recording attendance. Features include
+                <strong>real-time tracking, email notifications, and a user-friendly admin interface</strong>.
+            </p>
+        </div>
+
+        <div class="dashboard-card">
+            <h2 class="text-2xl font-bold">Meet the Team</h2>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-gray-100 text-gray-900 rounded-lg shadow-md text-center">
+                    <h3 class="font-bold">Suriya K</h3>
+                    <p>Lead Developer</p>
+                </div>
+                <div class="p-4 bg-gray-100 text-gray-900 rounded-lg shadow-md text-center">
+                    <h3 class="font-bold">Monish Kannaha</h3>
+                </div>
+                <div class="p-4 bg-gray-100 text-gray-900 rounded-lg shadow-md text-center">
+                    <h3 class="font-bold">Godwin Mathew</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript for GSAP Animations -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Navbar animation
+            gsap.from(".nav-bar", {
+                duration: 1,
+                y: -50,
+                opacity: 0,
+                ease: "power3.out"
+            });
+
+            // Dashboard card animations (Staggered effect)
+            gsap.to(".dashboard-card", {
+                opacity: 1,
+                y: -10,
+                duration: 1,
+                stagger: 0.3,
+                ease: "power2.out"
+            });
+
+            // Profile dropdown animation
+            const profileDropdown = document.getElementById("profileDropdown");
+            const profileDropdownMenu = document.getElementById("profileDropdownMenu");
+
+            profileDropdown.addEventListener("click", function (event) {
+                event.stopPropagation();
+                profileDropdownMenu.classList.toggle("hidden");
+
+                if (!profileDropdownMenu.classList.contains("hidden")) {
+                    gsap.fromTo(profileDropdownMenu,
+                        { opacity: 0, y: -10 },
+                        { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }
+                    );
+                }
+            });
+
+            document.addEventListener("click", function (event) {
+                if (!profileDropdown.contains(event.target)) {
+                    profileDropdownMenu.classList.add("hidden");
+                }
+            });
+        });
+
+        function logout() {
+            if (confirm("Are you sure you want to logout?")) {
+                localStorage.removeItem("token");
+                window.location.href = "index.html";
+            }
+        }
+    </script>
+</body>
+
+</html>

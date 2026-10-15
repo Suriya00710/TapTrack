@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Student - TapTrack</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(90deg, #C7C5F4, #776BCC);
+            color: #F8F8F8;
+        }
+
+        .nav-bar {
+            background: linear-gradient(90deg, #5D54A4, #7C78B8);
+            padding: 15px;
+            box-shadow: 0px 0px 10px #5C5696;
+            color: #FFFFFF;
+        }
+
+        .container {
+            background: linear-gradient(90deg, #5D54A4, #7C78B8);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0px 0px 24px #5C5696;
+            max-width: 500px;
+            color: #FFFFFF;
+            text-align: center;
+            opacity: 0;
+        }
+
+        .form-control {
+            background: #E0E0E0;
+            color: #333;
+            border-radius: 5px;
+            padding: 10px;
+            width: 100%;
+        }
+
+        #submitBtn {
+            background: #403A74;
+            transition: 0.3s ease;
+            padding: 10px;
+            border-radius: 5px;
+            color: #FFFFFF;
+            font-weight: bold;
+        }
+
+        #submitBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #statusMessage {
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col items-center min-h-screen">
+    <!-- Navbar -->
+    <nav class="nav-bar text-white w-full flex items-center shadow-md">
+        <h1 class="text-2xl font-bold ml-6">TapTrack</h1>
+        <div class="nav-links flex space-x-6 ml-6">
+            <a href="dashboard.html" class="text-lg hover:underline">Home</a>
+        </div>
+    </nav>
+
+    <div class="container mt-10">
+        <h2 class="text-3xl font-bold">Register New Student</h2>
+        <form id="register-form" class="mt-4 space-y-4">
+            <input type="text" class="form-control" id="name" placeholder="Full Name" required>
+            <input type="text" class="form-control" id="rollNo" placeholder="Roll Number" required>
+            <input type="text" class="form-control" id="department" placeholder="Department" required>
+            <input type="email" class="form-control" id="email" placeholder="Parent's Email" required>
+            <input type="text" class="form-control" id="uid" placeholder="RFID UID" required>
+            <button type="submit" id="submitBtn" class="w-full" style="opacity: 1; transform: none;">Register
+                Student</button>
+
+        </form>
+        <p id="statusMessage"></p>
+    </div>
+
+    <script>
+        // GSAP Animations - Fade in elements
+        gsap.to(".container", { duration: 1, opacity: 1, y: -10, ease: "power2.out" });
+        gsap.from("input, button", { duration: 0.8, opacity: 0, y: 20, stagger: 0.2, ease: "power2.out" });
+
+        document.getElementById('register-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const studentData = {
+                name: document.getElementById('name').value,
+                rollNo: document.getElementById('rollNo').value,
+                department: document.getElementById('department').value,
+                email: document.getElementById('email').value,
+                uid: document.getElementById('uid').value
+            };
+
+            const statusMsg = document.getElementById('statusMessage');
+            const submitBtn = document.getElementById('submitBtn');
+
+            submitBtn.disabled = true;
+            statusMsg.innerText = "⏳ Registering student...";
+            statusMsg.style.color = "yellow";
+
+            gsap.to(submitBtn, { duration: 0.3, scale: 0.9, repeat: 1, yoyo: true });
+
+            try {
+                const res = await fetch('/api/registerStudent', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(studentData)
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    statusMsg.innerText = "✅ Student registered successfully!";
+                    statusMsg.style.color = "#00FF00";
+                    document.getElementById('register-form').reset();
+                    gsap.fromTo(statusMsg, { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "elastic.out(1, 0.5)" });
+                } else {
+                    statusMsg.innerText = `❌ ${data.error}`;
+                    statusMsg.style.color = "#FF0000";
+                }
+            } catch (error) {
+                statusMsg.innerText = "❌ Registration failed! Please try again.";
+                statusMsg.style.color = "#FF0000";
+            }
+
+            submitBtn.disabled = false;
+        });
+    </script>
+</body>
+
+</html>

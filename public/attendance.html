@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Records</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(90deg, #C7C5F4, #776BCC);
+        }
+
+        .dashboard-card {
+            background: linear-gradient(90deg, #5D54A4, #7C78B8);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 24px #5C5696;
+            color: white;
+            opacity: 0;
+            /* Start hidden for GSAP animation */
+        }
+
+        .nav-bar {
+            background: linear-gradient(90deg, #5D54A4, #7C78B8);
+            padding: 15px;
+            box-shadow: 0px 0px 10px #5C5696;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="nav-bar text-white p-4 flex items-center shadow-md">
+        <h1 class="text-2xl font-bold mr-6">TapTrack</h1>
+        <div class="nav-links flex space-x-6">
+            <a href="dashboard.html" class="text-lg hover:underline">Home</a>
+            <a href="attendance.html" class="text-lg hover:underline">Attendance</a>
+        </div>
+
+        <!-- Profile Dropdown -->
+        <div class="relative ml-auto">
+            <button id="profileDropdown"
+                class="flex items-center space-x-2 bg-gray-700 px-4 py-2 rounded-lg focus:outline-none">
+                <img src="profile.png" alt="Profile" class="w-8 h-8 rounded-full">
+                <span>Admin</span>
+            </button>
+            <ul id="profileDropdownMenu" class="hidden absolute right-0 mt-2 bg-white shadow-md rounded-lg w-40">
+                <li><a href="#" onclick="logout()" class="block px-4 py-2 text-gray-700 hover:bg-gray-200">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Attendance Records Section -->
+    <div class="flex justify-center items-center min-h-screen">
+        <div class="dashboard-card max-w-4xl w-full p-6">
+            <h2 class="text-2xl font-bold text-center mb-4">Attendance Records</h2>
+
+            <!-- Date Filter -->
+            <label for="filter-date" class="block text-white font-medium mb-2 text-center">Filter by Date:</label>
+            <input type="date" id="filter-date"
+                class="w-full p-2 border rounded-md focus:ring focus:ring-blue-300 mb-4 text-gray-900"
+                onchange="filterAttendanceByDate()">
+
+            <!-- Attendance Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse border border-gray-300 text-white text-center">
+                    <thead>
+                        <tr class="bg-gray-900">
+                            <th class="border border-gray-300 p-2">Name</th>
+                            <th class="border border-gray-300 p-2">Roll No</th>
+                            <th class="border border-gray-300 p-2">Department</th>
+                            <th class="border border-gray-300 p-2">Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchAttendanceRecords() {
+            try {
+                const res = await fetch('/api/attendanceRecords');
+                if (!res.ok) throw new Error("Failed to fetch attendance");
+                const records = await res.json();
+                renderAttendanceTable(records);
+            } catch (error) {
+                document.getElementById('attendance-table').innerHTML = "<tr><td colspan='4' class='text-red-500 p-3 text-center'>❌ Failed to load attendance records.</td></tr>";
+            }
+        }
+
+        function renderAttendanceTable(records) {
+            const table = document.getElementById('attendance-table');
+            table.innerHTML = records.length > 0
+                ? records.map(r => `<tr class="border border-gray-300 opacity-0">
+                        <td class="p-2 border border-gray-300">${r.name}</td>
+                        <td class="p-2 border border-gray-300">${r.rollNo}</td>
+                        <td class="p-2 border border-gray-300">${r.department}</td>
+                        <td class="p-2 border border-gray-300">${new Date(r.timestamp).toLocaleString()}</td>
+                    </tr>`).join('')
+                : '<tr><td colspan="4" class="text-center p-3 text-gray-600">No attendance records found.</td></tr>';
+
+            gsap.to("#attendance-table tr", {
+                opacity: 1,
+                y: -10,
+                duration: 0.5,
+                stagger: 0.2,
+                ease: "power2.out"
+            });
+        }
+
+        function filterAttendanceByDate() {
+            const selectedDate = document.getElementById('filter-date').value;
+            if (!selectedDate) return fetchAttendanceRecords();
+
+            fetch('/api/attendanceRecords')
+                .then(res => res.json())
+                .then(records => {
+                    const filteredRecords = records.filter(r => new Date(r.timestamp).toISOString().split('T')[0] === selectedDate);
+                    renderAttendanceTable(filteredRecords);
+                })
+                .catch(() => {
+                    document.getElementById('attendance-table').innerHTML = "<tr><td colspan='4' class='text-red-500 p-3 text-center'>❌ Failed to filter attendance records.</td></tr>";
+                });
+        }
+
+        function logout() {
+            if (confirm("Are you sure you want to logout?")) {
+                localStorage.removeItem('token');
+                window.location.href = 'index.html';
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Navbar animation
+            gsap.from(".nav-bar", {
+                duration: 1,
+                y: -50,
+                opacity: 0,
+                ease: "power3.out"
+            });
+
+            // Dashboard card animation
+            gsap.to(".dashboard-card", {
+                opacity: 1,
+                y: -10,
+                duration: 1,
+                ease: "bounce.out"
+            });
+
+            // Profile dropdown animation
+            const profileDropdown = document.getElementById("profileDropdown");
+            const profileDropdownMenu = document.getElementById("profileDropdownMenu");
+
+            profileDropdown.addEventListener("click", function (event) {
+                event.stopPropagation();
+                profileDropdownMenu.classList.toggle("hidden");
+
+                if (!profileDropdownMenu.classList.contains("hidden")) {
+                    gsap.fromTo(profileDropdownMenu,
+                        { opacity: 0, y: -10 },
+                        { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }
+                    );
+                }
+            });
+
+            document.addEventListener("click", function (event) {
+                if (!profileDropdown.contains(event.target)) {
+                    profileDropdownMenu.classList.add("hidden");
+                }
+            });
+
+            fetchAttendanceRecords();
+        });
+    </script>
+</body>
+
+</html>
