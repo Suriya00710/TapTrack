@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TapTrack — Register Student</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="taptrack.css" />
+  <script>
+    if (!sessionStorage.getItem('token')) window.location.replace('index.html');
+  </script>
+</head>
+<body>
+  <div class="shell">
+
+    <aside class="side">
+      <a class="brand" href="dashboard.html">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="9" cy="23" r="3.5" fill="#FF4F00"/>
+          <path d="M9 14.5A8.5 8.5 0 0 1 17.5 23" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M9 6.5A16.5 16.5 0 0 1 25.5 23" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-name">Tap<i>Track</i></span>
+      </a>
+      <nav class="nav">
+        <span class="nav-label">Menu</span>
+        <a href="dashboard.html"><span class="n">01</span>Overview</a>
+        <a href="attendance.html"><span class="n">02</span>Attendance</a>
+        <a href="register-student.html" class="active"><span class="n">03</span>Register</a>
+      </nav>
+      <div class="side-foot">
+        <div class="who-avatar">A</div>
+        <div class="who"><div class="who-name">Admin</div><div class="who-role">signed in</div></div>
+        <button class="logout" onclick="logout()">Log out</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="head rise">
+        <div>
+          <div class="eyebrow"><b>03</b> — Register</div>
+          <h1 class="title">Issue a <em>card</em></h1>
+          <p class="lede">Link an RFID card to a student. The card preview updates as you type.</p>
+        </div>
+      </header>
+
+      <div class="reg rise" style="--d:.08s">
+        <form class="panel reg-form" id="regForm" onsubmit="event.preventDefault(); registerStudent();" novalidate>
+
+          <fieldset class="group">
+            <legend><span>A</span>Student</legend>
+            <label class="field">
+              <span class="field-label">Full name</span>
+              <input class="input" type="text" id="name" placeholder="e.g. Suriya Kumar" autocomplete="off" />
+            </label>
+            <div class="two">
+              <label class="field">
+                <span class="field-label">Roll number</span>
+                <input class="input" type="text" id="rollNo" placeholder="e.g. CSE2024001" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Department</span>
+                <input class="input" type="text" id="department" placeholder="e.g. Computer Science" autocomplete="off" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="group">
+            <legend><span>B</span>Parent contact</legend>
+            <label class="field">
+              <span class="field-label">Parent's email</span>
+              <input class="input" type="email" id="email" placeholder="parent@example.com" autocomplete="off" />
+            </label>
+          </fieldset>
+
+          <fieldset class="group">
+            <legend><span>C</span>RFID card</legend>
+            <label class="field">
+              <span class="field-label">
+                Card UID
+                <span class="scan" id="scanState"><i></i><span id="scanText">Click here, then tap the card</span></span>
+              </span>
+              <input class="input mono-input" type="text" id="uid" placeholder="A3 4F 9C 12" autocomplete="off" />
+            </label>
+            <p class="hint">USB readers type the UID and press Enter, which submits the form. You can also type it by hand.</p>
+          </fieldset>
+
+          <button type="submit" class="btn btn-block" id="submitBtn">Register student <span class="mono">→</span></button>
+          <div class="alert" id="statusMsg" role="status"></div>
+        </form>
+
+        <aside class="reg-side">
+          <div class="section-label"><span>Card preview</span></div>
+          <div class="idc" id="idc">
+            <div class="idc-top">
+              <span class="brand-name">Tap<i>Track</i></span>
+              <span class="idc-tag">Student</span>
+            </div>
+            <div class="idc-name" id="pvName"><span class="ph">Student name</span></div>
+            <div class="idc-row">
+              <span id="pvRoll"><span class="ph">Roll no</span></span>
+              <span id="pvDept"><span class="ph">Department</span></span>
+            </div>
+            <div class="idc-bottom">
+              <div class="idc-chip"></div>
+              <div>
+                <div class="idc-k">UID</div>
+                <div class="idc-uid" id="pvUid"><span class="ph">-- -- -- --</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-label" style="margin-top:32px">
+            <span>Registered this session</span>
+            <span id="sessionCount">0</span>
+          </div>
+          <div id="recentList"></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function authHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + sessionStorage.getItem('token')
+      };
+    }
+
+    function logout() {
+      if (confirm('Are you sure you want to log out?')) {
+        sessionStorage.removeItem('token');
+        window.location.replace('index.html');
+      }
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    const FIELDS = [
+      { key: 'name',       label: 'full name' },
+      { key: 'rollNo',     label: 'roll number' },
+      { key: 'department', label: 'department' },
+      { key: 'email',      label: "parent's email" },
+      { key: 'uid',        label: 'RFID UID' }
+    ];
+    const $ = id => document.getElementById(id);
+
+    // ── Live card preview ──
+    const preview = {
+      name:       ['pvName', 'Student name'],
+      rollNo:     ['pvRoll', 'Roll no'],
+      department: ['pvDept', 'Department'],
+      uid:        ['pvUid',  '-- -- -- --']
+    };
+    function updatePreview() {
+      for (const [key, [target, placeholder]] of Object.entries(preview)) {
+        const v = $(key).value.trim();
+        $(target).innerHTML = v ? esc(v) : `<span class="ph">${placeholder}</span>`;
+      }
+    }
+
+    FIELDS.forEach(({ key }, i) => {
+      const input = $(key);
+      input.addEventListener('input', () => { input.classList.remove('invalid'); updatePreview(); });
+      // Enter moves to the next field; on the UID field it submits (works with USB RFID readers)
+      input.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        if (key === 'uid') registerStudent();
+        else $(FIELDS[i + 1].key).focus();
+      });
+    });
+
+    // ── Scan-ready indicator ──
+    $('uid').addEventListener('focus', () => {
+      $('scanState').classList.add('live');
+      $('scanText').textContent = 'Ready: tap the card now';
+    });
+    $('uid').addEventListener('blur', () => {
+      $('scanState').classList.remove('live');
+      $('scanText').textContent = 'Click here, then tap the card';
+    });
+
+    function showStatus(msg, type) {
+      const el = $('statusMsg');
+      if (!msg) { el.className = 'alert'; el.innerHTML = ''; return; }
+      el.className = 'alert ' + type;
+      el.innerHTML = `<span class="glyph"><span>${type === 'ok' ? '✓' : '!'}</span></span><span>${esc(msg)}</span>`;
+      void el.offsetWidth;
+      el.classList.add('show');
+    }
+
+    function setLoading(on) {
+      const btn = $('submitBtn');
+      btn.disabled = on;
+      btn.innerHTML = on ? '<span class="spin"></span>Registering…' : 'Register student <span class="mono">→</span>';
+    }
+
+    async function registerStudent() {
+      if ($('submitBtn').disabled) return;
+
+      const data = {};
+      for (const { key, label } of FIELDS) {
+        data[key] = $(key).value.trim();
+        if (!data[key]) {
+          showStatus(`Please fill in the ${label}.`, 'err');
+          $(key).classList.add('invalid');
+          $(key).focus();
+          return;
+        }
+      }
+
+      setLoading(true);
+      showStatus('', '');
+
+      try {
+        const res = await fetch('/api/registerStudent', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(data)
+        });
+
+        if (res.status === 401) {
+          sessionStorage.removeItem('token');
+          window.location.replace('index.html');
+          return;
+        }
+
+        const result = await res.json();
+
+        if (res.ok) {
+          showStatus(`${data.name} is registered. Their card is ready to use.`, 'ok');
+          $('idc').classList.remove('flash'); void $('idc').offsetWidth; $('idc').classList.add('flash');
+          FIELDS.forEach(({ key }) => $(key).value = '');
+          updatePreview();
+          addRecentEntry(data);
+          $('name').focus();
+        } else {
+          showStatus(result.error || 'Registration failed.', 'err');
+        }
+      } catch {
+        showStatus('Server error. Please try again.', 'err');
+      }
+
+      setLoading(false);
+    }
+
+    // ── Recent entries (this session only) ──
+    const recentEntries = [];
+
+    function addRecentEntry(data) {
+      recentEntries.unshift(data);
+      renderRecent();
+    }
+
+    function renderRecent() {
+      $('sessionCount').textContent = recentEntries.length;
+      const list = $('recentList');
+      if (!recentEntries.length) {
+        list.innerHTML = '<div class="recent-empty">Nobody yet. New registrations will show up here.</div>';
+        return;
+      }
+      list.innerHTML = recentEntries.slice(0, 5).map(e => `
+        <div class="recent-item">
+          <div class="recent-mark">✓</div>
+          <div>
+            <div class="recent-name">${esc(e.name)}</div>
+            <div class="recent-meta">${esc(e.rollNo)} · ${esc(e.department)} · ${esc(e.uid)}</div>
+          </div>
+        </div>`).join('');
+    }
+
+    renderRecent();
+  </script>
+</body>
+</html>

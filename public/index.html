@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TapTrack — Sign in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="taptrack.css" />
+  <script>
+    // Already signed in → go straight to the dashboard
+    if (sessionStorage.getItem('token')) window.location.replace('dashboard.html');
+  </script>
+</head>
+<body>
+  <div class="login-wrap">
+
+    <!-- Left: brand + tap animation -->
+    <section class="login-art">
+      <span class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="9" cy="23" r="3.5" fill="#FF4F00"/>
+          <path d="M9 14.5A8.5 8.5 0 0 1 17.5 23" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M9 6.5A16.5 16.5 0 0 1 25.5 23" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-name">Tap<i>Track</i></span>
+      </span>
+
+      <div class="login-copy rise">
+        <h1 class="login-h">Tap in.<br><em>We'll keep track.</em></h1>
+        <p>RFID attendance for the classroom. Every card tap is logged the moment it happens.</p>
+      </div>
+
+      <div class="tap-scene rise" style="--d:.15s" aria-hidden="true">
+        <div class="reader"><span class="led"></span><span class="slot"></span></div>
+        <div class="waves"><i></i><i></i><i></i></div>
+        <div class="idcard">
+          <div class="row"><div class="chip"></div><div class="bars"><b></b><b></b></div></div>
+          <div class="uid">A3 4F 9C 12</div>
+        </div>
+      </div>
+
+      <div class="login-foot">ESP32 · RFID · Live dashboard</div>
+    </section>
+
+    <!-- Right: form -->
+    <section class="login-form-side">
+      <form class="login-form rise" id="card" style="--d:.1s" onsubmit="event.preventDefault(); login();" novalidate>
+        <div class="eyebrow"><b>●</b> Admin access</div>
+        <h2 class="login-title">Sign in</h2>
+        <p class="lede">Use your administrator credentials to open the dashboard.</p>
+
+        <label class="field">
+          <span class="field-label">Username</span>
+          <input class="input" type="text" id="username" placeholder="admin" autocomplete="username" autofocus />
+        </label>
+
+        <div class="field">
+          <label class="field-label" for="password">Password</label>
+          <div class="input-wrap">
+            <input class="input" type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" class="pw-toggle" id="pwToggle" onclick="togglePw()">Show</button>
+          </div>
+        </div>
+
+        <div class="alert err" id="errorMsg" role="alert">
+          <span class="glyph"><span>!</span></span>
+          <span id="errorText"></span>
+        </div>
+
+        <button class="btn btn-block" id="loginBtn" type="submit">Sign in <span class="mono">→</span></button>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    function showError(msg) {
+      document.getElementById('errorText').textContent = msg;
+      const box = document.getElementById('errorMsg');
+      box.classList.remove('show'); void box.offsetWidth; box.classList.add('show');
+      const card = document.getElementById('card');
+      card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+    }
+
+    function clearError() {
+      document.getElementById('errorMsg').classList.remove('show');
+    }
+
+    function togglePw() {
+      const pw = document.getElementById('password');
+      const show = pw.type === 'password';
+      pw.type = show ? 'text' : 'password';
+      document.getElementById('pwToggle').textContent = show ? 'Hide' : 'Show';
+    }
+
+    function setLoading(on) {
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = on;
+      btn.innerHTML = on ? '<span class="spin"></span>Signing in…' : 'Sign in <span class="mono">→</span>';
+    }
+
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      clearError();
+
+      if (!username || !password) {
+        showError('Username and password are required.');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          sessionStorage.setItem('token', data.token);
+          window.location.replace('dashboard.html');
+        } else {
+          showError(data.message || 'Invalid credentials.');
+          setLoading(false);
+        }
+      } catch {
+        showError('Server error. Please try again.');
+        setLoading(false);
+      }
+    }
+  </script>
+</body>
+</html>

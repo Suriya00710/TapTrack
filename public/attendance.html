@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TapTrack — Attendance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="taptrack.css" />
+  <script>
+    if (!sessionStorage.getItem('token')) window.location.replace('index.html');
+  </script>
+</head>
+<body>
+  <div class="shell">
+
+    <aside class="side">
+      <a class="brand" href="dashboard.html">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="9" cy="23" r="3.5" fill="#FF4F00"/>
+          <path d="M9 14.5A8.5 8.5 0 0 1 17.5 23" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M9 6.5A16.5 16.5 0 0 1 25.5 23" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-name">Tap<i>Track</i></span>
+      </a>
+      <nav class="nav">
+        <span class="nav-label">Menu</span>
+        <a href="dashboard.html"><span class="n">01</span>Overview</a>
+        <a href="attendance.html" class="active"><span class="n">02</span>Attendance</a>
+        <a href="register-student.html"><span class="n">03</span>Register</a>
+      </nav>
+      <div class="side-foot">
+        <div class="who-avatar">A</div>
+        <div class="who"><div class="who-name">Admin</div><div class="who-role">signed in</div></div>
+        <button class="logout" onclick="logout()">Log out</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="head rise">
+        <div>
+          <div class="eyebrow"><b>02</b> — Attendance</div>
+          <h1 class="title">Attendance <em>log</em></h1>
+          <p class="lede">Every card tap, newest first. Narrow it down, then export exactly what you see.</p>
+        </div>
+        <button class="btn btn-ghost" onclick="exportCSV()">Export CSV <span class="mono">↓</span></button>
+      </header>
+
+      <div class="toolbar rise" style="--d:.08s">
+        <label class="tool tool-grow">
+          <span class="tool-k">Search</span>
+          <input class="input" type="text" id="filterName" placeholder="Name or roll number" oninput="applyFilters()" />
+        </label>
+        <label class="tool">
+          <span class="tool-k">Date</span>
+          <input class="input" type="date" id="filterDate" onchange="applyFilters()" />
+        </label>
+        <label class="tool">
+          <span class="tool-k">Department</span>
+          <select class="input select" id="filterDept" onchange="applyFilters()">
+            <option value="">All departments</option>
+          </select>
+        </label>
+        <button class="btn btn-quiet" onclick="clearFilters()">Clear</button>
+      </div>
+
+      <div class="panel ledger rise" style="--d:.14s">
+        <div class="ledger-meta">
+          <span>Showing <b id="visibleCount">0</b> of <span id="totalCount">0</span> records</span>
+          <span id="rangeNote"></span>
+        </div>
+        <div class="table-scroll" id="tableBody">
+          <div class="state"><span class="spin"></span>Loading attendance records…</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function authHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + sessionStorage.getItem('token')
+      };
+    }
+
+    function logout() {
+      if (confirm('Are you sure you want to log out?')) {
+        sessionStorage.removeItem('token');
+        window.location.replace('index.html');
+      }
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // Local-time day key (YYYY-MM-DD) so the date filter matches the date picker in IST.
+    const pad = n => String(n).padStart(2, '0');
+    function dayKey(v) {
+      const d = new Date(v);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    let allRecords = [];
+
+    async function fetchRecords() {
+      try {
+        const res = await fetch('/api/attendanceRecords', { headers: authHeaders() });
+
+        if (res.status === 401) {
+          sessionStorage.removeItem('token');
+          window.location.replace('index.html');
+          return;
+        }
+        if (!res.ok) throw new Error();
+
+        allRecords = (await res.json()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        document.getElementById('totalCount').textContent = allRecords.length;
+        populateDeptFilter(allRecords);
+        renderTable(allRecords);
+      } catch {
+        document.getElementById('tableBody').innerHTML = `
+          <div class="state">
+            <div class="big">Couldn't load records.</div>
+            <div>Check that the server is running, then refresh.</div>
+          </div>`;
+        document.getElementById('visibleCount').textContent = '0';
+      }
+    }
+
+    function populateDeptFilter(records) {
+      const depts = [...new Set(records.map(r => r.department).filter(Boolean))].sort();
+      const sel = document.getElementById('filterDept');
+      depts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = d;
+        sel.appendChild(opt);
+      });
+    }
+
+    function filteredRecords() {
+      const date = document.getElementById('filterDate').value;
+      const search = document.getElementById('filterName').value.trim().toLowerCase();
+      const dept = document.getElementById('filterDept').value;
+
+      return allRecords.filter(r => {
+        const matchDate = !date || dayKey(r.timestamp) === date;
+        const matchSearch = !search ||
+          r.name?.toLowerCase().includes(search) ||
+          r.rollNo?.toLowerCase().includes(search);
+        const matchDept = !dept || r.department === dept;
+        return matchDate && matchSearch && matchDept;
+      });
+    }
+
+    function applyFilters() {
+      renderTable(filteredRecords());
+    }
+
+    function clearFilters() {
+      document.getElementById('filterDate').value = '';
+      document.getElementById('filterName').value = '';
+      document.getElementById('filterDept').value = '';
+      renderTable(allRecords);
+    }
+
+    function renderTable(records) {
+      document.getElementById('visibleCount').textContent = records.length;
+      const body = document.getElementById('tableBody');
+
+      if (!records.length) {
+        document.getElementById('rangeNote').textContent = '';
+        body.innerHTML = allRecords.length
+          ? `<div class="state"><div class="big">Nothing matches.</div><div>Try a different date, name or department.</div></div>`
+          : `<div class="state"><div class="big">No taps yet.</div><div>Records appear here as soon as a card is scanned.</div></div>`;
+        return;
+      }
+
+      // Group rows by local day
+      const groups = [];
+      records.forEach(r => {
+        const k = dayKey(r.timestamp);
+        const g = groups[groups.length - 1];
+        if (g && g.key === k) g.rows.push(r); else groups.push({ key: k, rows: [r] });
+      });
+
+      const days = groups.length;
+      document.getElementById('rangeNote').textContent = `${days} day${days === 1 ? '' : 's'}`;
+
+      const today = dayKey(new Date());
+      let i = 0;
+      body.innerHTML = `
+        <table>
+          <thead>
+            <tr><th>Time</th><th>Name</th><th>Roll no</th><th>Department</th></tr>
+          </thead>
+          <tbody>
+            ${groups.map(g => {
+              const label = new Date(g.rows[0].timestamp)
+                .toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+              return `
+                <tr class="day"><td colspan="4">
+                  <b>${label}</b>${g.key === today ? '<span class="tag-today">● Today</span>' : ''}
+                  <span class="cnt">${g.rows.length} tap${g.rows.length === 1 ? '' : 's'}</span>
+                </td></tr>
+                ${g.rows.map(r => `
+                  <tr class="r" style="animation-delay:${Math.min(i++, 20) * 18}ms">
+                    <td class="t">${new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                    <td class="nm">${esc(r.name)}</td>
+                    <td><span class="roll">${esc(r.rollNo)}</span></td>
+                    <td class="dp">${esc(r.department)}</td>
+                  </tr>`).join('')}`;
+            }).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function exportCSV() {
+      const rows = filteredRecords();
+      if (!rows.length) { alert('No records to export.'); return; }
+
+      const csv = [
+        ['Name', 'Roll No', 'Department', 'Timestamp'],
+        ...rows.map(r => [r.name, r.rollNo, r.department, new Date(r.timestamp).toLocaleString()])
+      ].map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+
+      const date = document.getElementById('filterDate').value;
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `attendance_${date || 'all'}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    fetchRecords();
+  </script>
+</body>
+</html>
